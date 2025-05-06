@@ -47,7 +47,6 @@ function App() {
 
     // 중앙에 이미지 그리기
     ctx.drawImage(img, offsetX, offsetY, targetWidth, targetHeight);
-
     
     const sx = Math.floor(offsetX);
     const sy = Math.floor(offsetY);
@@ -166,8 +165,6 @@ function App() {
 
       requestAnimationFrame(draw);
     };
-
-    
 
     draw();
   };
