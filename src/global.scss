@@ -24,7 +24,7 @@
     width: 10rem;
     height: 10rem;
     --trash-w: 4rem;
-    --trash-color: #d6dcdd;
+    --trash-color: rgba(255, 255, 255, 0.8);
 
     >.top {
         display: flex;
@@ -78,7 +78,11 @@
                 position: absolute;
                 bottom: 0;
                 opacity: 0;
-                animation: fadeIn 0.4s ease forwards;
+                transition: opacity 0.1s ease-in-out;
+
+                &.fade-in {
+                    opacity: 1;
+                }
             }
 
             @for $i from 1 through $junks {
@@ -87,7 +91,7 @@
                 bottom: #{random(10)}px;
                 background-color: hsl(random(360), 60%, 60%);
                 transform: rotate(#{random(30) - 15}deg);
-                animation-delay: #{0.1 * $i}s;
+                transition-delay: #{0.1 * $i}s;
               }
             }
         }
@@ -100,6 +104,13 @@
         >.top {
             transform: rotate(30deg);
             left: 0.2rem;
+        }
+    }
+
+    &.open-right {
+        >.top {
+            transform-origin: left;
+            transform: rotate(-30deg);
         }
     }
 

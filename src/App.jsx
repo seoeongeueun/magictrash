@@ -3,6 +3,9 @@ import DropZone from './components/DropZone'
 
 function App() {
   const [imgUrl, setImgUrl] = useState("");
+  const [isImageReady, setIsImageReady] = useState(false);
+  const [startDraw, setStartDraw] = useState(false);
+  const [startXY, setStartXY] = useState({x: 0, y: 0}); //픽셀이 등장할 위치
   const canvasRef = useRef();
   const imgRef = useRef();
   const particlesRef = useRef([]);
@@ -22,6 +25,12 @@ function App() {
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
+
+  useEffect(() => {
+    if (startDraw && isImageReady) {
+      handleImageLoad();
+    }
+  }, [startDraw, isImageReady])
 
   // 이미지가 로드되었을 때 캔버스에 그리기
   const handleImageLoad = () => {
@@ -45,6 +54,9 @@ function App() {
     const offsetX = (canvas.width - targetWidth) / 2;
     const offsetY = (canvas.height - targetHeight) / 2;
 
+    //각 픽셀에 부여할 랜덤 딜레이 맥스 값
+    const delay = 1000;
+
     // 중앙에 이미지 그리기
     ctx.drawImage(img, offsetX, offsetY, targetWidth, targetHeight);
     
@@ -67,13 +79,14 @@ function App() {
 
         if (a > 0) {
           particles.push({
-            x: x + sx,
-            y: y + sy,
+            x: startXY.x,
+            y: startXY.y,
             ox: x + sx,
             oy: y + sy,
             vx: 0,
             vy: 0,
             color: `rgba(${r},${g},${b},${a / 255})`,
+            delay: Math.random() * delay,
           });
         }
       }
@@ -91,82 +104,100 @@ function App() {
     const particles = particlesRef.current;
     const repelRadius = 50; //밀어내는 원의 크기
     const repelForce = 20;
-    const ease = 0.1;
 
-    const draw = () => {
+    let isEntering = true; //시작 등장 애니메이션을 위한 플래그
+    let isEnteringDone = false;
+    let enteredCount = 0;
+
+    const enterDuration = 1000; // 1초간 (0,0)에서 자기 자리로 이동
+    const enterStart = performance.now();
+
+    const draw = (timestamp) => {
       const mouse = mouseRef.current;
+      const elapsed = timestamp - enterStart;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 마우스 움직임에 반발발
+      // 마우스 움직임에 반발
       for (let p of particles) {
-        const dx = p.x - mouse.x;
-        const dy = p.y - mouse.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (isEntering) {
+          const t = Math.min((elapsed - p.delay) / enterDuration, 1);
 
-        if (dist < repelRadius) {
-          const angle = Math.atan2(dy, dx);
-          const force = (1 - dist / repelRadius) * repelForce;
-          p.vx += Math.cos(angle) * force;
-          p.vy += Math.sin(angle) * force;
-        }
-
-        // const ox = p.ox - p.x;
-        // const oy = p.oy - p.y;
-        // p.vx += ox * ease;
-        // p.vy += oy * ease;
-
-        p.vx *= 0.85;
-        p.vy *= 0.85;
-
-        p.x += p.vx;
-        p.y += p.vy;
-
-        // ctx.fillStyle = p.color;
-        // ctx.fillRect(p.x, p.y, PARTICLE_SIZE, PARTICLE_SIZE);
-      }
-
-      //입자끼리 밀쳐내기
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const a = particles[i];
-          const b = particles[j];
-    
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          const minDist = PARTICLE_SIZE;
-    
-          if (dist < minDist && dist > 0) {
-            const overlap = (minDist - dist) / 2;
-            const angle = Math.atan2(dy, dx);
-    
-            // 서로 반으로 밀어내기
-            a.x -= Math.cos(angle) * overlap;
-            a.y -= Math.sin(angle) * overlap;
-            b.x += Math.cos(angle) * overlap;
-            b.y += Math.sin(angle) * overlap;
-    
-            // 속도 교환 (탄성 효과)
-            [a.vx, b.vx] = [b.vx, a.vx];
-            [a.vy, b.vy] = [b.vy, a.vy];
+          if (t < 0) {
+            // 아직 시작 안 된 입자는 시작 위치에 고정
+            p.x = startXY.x;
+            p.y = startXY.y;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y, PARTICLE_SIZE, PARTICLE_SIZE);
+            continue;
           }
-        }
-      }
 
-      for (let p of particles) {
-        p.vx *= 0.85;
-        p.vy *= 0.85;
-        p.x += p.vx;
-        p.y += p.vy;
-    
+          const clamped = Math.min(t, 1);
+          const ease = clamped * clamped * (3 - 2 * clamped);
+          p.x = startXY.x + (p.ox - startXY.x) * ease;
+          p.y = startXY.y + (p.oy - startXY.y) * ease;
+
+          if (clamped >= 1 && !p.hasEntered) {
+            p.hasEntered = true;
+            enteredCount++;
+          }
+        } else {
+          const dx = p.x - mouse.x;
+          const dy = p.y - mouse.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < repelRadius) {
+            const angle = Math.atan2(dy, dx);
+            const force = (1 - dist / repelRadius) * repelForce;
+            p.vx += Math.cos(angle) * force;
+            p.vy += Math.sin(angle) * force;
+          }
+
+          p.vx *= 0.85;
+          p.vy *= 0.85;
+          p.x += p.vx;
+          p.y += p.vy;
+        }
+
         ctx.fillStyle = p.color;
         ctx.fillRect(p.x, p.y, PARTICLE_SIZE, PARTICLE_SIZE);
       }
 
+      // 모든 입자가 자리 도착했는지 검사
+      if (isEntering && enteredCount === particles.length) {
+        isEntering = false;
+        isEnteringDone = true;
+      }      
+
+      if (isEnteringDone) {
+        // 충돌 처리
+        for (let i = 0; i < particles.length; i++) {
+          for (let j = i + 1; j < particles.length; j++) {
+            const a = particles[i];
+            const b = particles[j];
+            const dx = b.x - a.x;
+            const dy = b.y - a.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const minDist = PARTICLE_SIZE;
+
+            if (dist < minDist && dist > 0) {
+              const overlap = (minDist - dist) / 2;
+              const angle = Math.atan2(dy, dx);
+
+              a.x -= Math.cos(angle) * overlap;
+              a.y -= Math.sin(angle) * overlap;
+              b.x += Math.cos(angle) * overlap;
+              b.y += Math.sin(angle) * overlap;
+
+              [a.vx, b.vx] = [b.vx, a.vx];
+              [a.vy, b.vy] = [b.vy, a.vy];
+            }
+          }
+        }
+      }
       requestAnimationFrame(draw);
     };
 
-    draw();
+    requestAnimationFrame(draw);
   };
 
 
@@ -174,15 +205,15 @@ function App() {
       <main>
         {imgUrl && (
         <img
+          onLoad={() => setIsImageReady(true)}
           src={imgUrl}
           ref={imgRef}
-          onLoad={handleImageLoad}
           style={{ display: "none" }}
           alt="source"
         />
       )}
         <canvas ref={canvasRef}/>
-        <DropZone setImgUrl={setImgUrl}/>
+        <DropZone setImgUrl={setImgUrl} setStartXY={setStartXY} startDraw={startDraw} setStartDraw={setStartDraw}/>
       </main>
   )
 }
