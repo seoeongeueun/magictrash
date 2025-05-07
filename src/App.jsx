@@ -55,7 +55,7 @@ function App() {
     const offsetY = (canvas.height - targetHeight) / 2;
 
     //각 픽셀에 부여할 랜덤 딜레이 맥스 값
-    const delay = 1000;
+    const delay = 2000;
 
     // 중앙에 이미지 그리기
     ctx.drawImage(img, offsetX, offsetY, targetWidth, targetHeight);

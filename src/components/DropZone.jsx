@@ -1,22 +1,42 @@
 import {useState, useRef, useEffect} from 'react';
 
 export default function DropZone({setImgUrl, setStartXY, setStartDraw, startDraw}) {
-    const [isDraggingOver, setIsDraggingOver] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
     const [isReady, setIsReady] = useState(false);
     const trashRef = useRef();
     const TRASH_COUNT = 20;
 
     useEffect(() => {
-        if (!trashRef.current || !setStartXY) return;
-        const rect = trashRef.current.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        setStartXY({x: centerX, y: centerY - 20});
-    }, []);
+        const handleDragOver = (e) => {
+            e.preventDefault();
+      
+            const { clientX, clientY } = e;
+
+            const trashRect = trashRef.current?.getBoundingClientRect();
+            if (!trashRect) return;
+
+            const centerX = trashRect.left + trashRect.width / 2;
+            const centerY = trashRect.top + trashRect.height / 2;
+            setStartXY({x: centerX, y: centerY - 20});
+      
+            const isInside =
+                clientX >= trashRect.left &&
+                clientX <= trashRect.right &&
+                clientY >= trashRect.top &&
+                clientY <= trashRect.bottom;
+      
+            setIsDragging(isInside);
+        };
+      
+        document.addEventListener("dragover", handleDragOver);
+        return () => {
+            document.removeEventListener("dragover", handleDragOver);
+        };
+      }, []);
  
     const handleDragEnter = (e) => {
         e.preventDefault();
-        setIsDraggingOver(true);
+        //setIsDraggingOver(true);
       };
 
     const handleDrop = (e) => {
@@ -37,7 +57,7 @@ export default function DropZone({setImgUrl, setStartXY, setStartDraw, startDraw
     const handleTrashAnimation = () => {
         const t = setTimeout(() => {
             setIsReady(false);
-            setIsDraggingOver(true);
+            setIsDragging(false);
             setStartDraw(true);
         }, 1000);
 
@@ -54,8 +74,8 @@ export default function DropZone({setImgUrl, setStartXY, setStartDraw, startDraw
     }
 
     return (
-        <section className='drop-area'>
-            <div ref={trashRef} className={`trash-can ${isDraggingOver ? "drag-over" : ""} ${startDraw ? "open-right" : ""}`} onDragLeave={handleDragLeave} onDragEnter={handleDragEnter} onDrop={handleDrop} onDragOver={handleDragOver}>
+        <section className='icons'>
+            <div ref={trashRef} className={`icon trash-can ${isDragging ? "drag" : ""} ${startDraw ? "open-right" : ""}`} onDragLeave={handleDragLeave} onDragEnter={handleDragEnter} onDrop={handleDrop} onDragOver={handleDragOver}>
                 <div className='top'>
                     <div className='handle'/>
                     <div className='base'/>
@@ -66,9 +86,17 @@ export default function DropZone({setImgUrl, setStartXY, setStartDraw, startDraw
                             <div id={`trash-${i}`} key={i} className={`trash trash-${i} ${isReady ? "fade-in" : ""}`} />
                         ))}
                     </div>
+                    <img alt="recycle sign" src="/src/assets/recycling_icon.svg"></img>
                 </div>
                 <div className='name'>
                     <span>Recycle Bin</span>
+                </div>
+            </div>
+            <div className='icon ccc'>
+                <img alt="ccc icon" src="/src/assets/ccclogo.jpg"></img>
+                <div className='shortcut'></div>
+                <div className='name'>
+                    <span>ccc.kr</span>
                 </div>
             </div>
         </section>

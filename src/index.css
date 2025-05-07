@@ -32,6 +32,10 @@ canvas {
   height: 100%;
 }
 
+canvas:active {
+  cursor: grabbing;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
